@@ -1,3 +1,3 @@
-fn main() -> nih_plug_xtasks::Result<()> {
-    nih_plug_xtasks::main()
+fn main() -> nih_plug_xtask::Result<()> {
+    nih_plug_xtask::main()
 }

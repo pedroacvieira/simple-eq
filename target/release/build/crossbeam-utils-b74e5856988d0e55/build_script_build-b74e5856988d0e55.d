@@ -1,0 +1,9 @@
+/home/pvieira/projects/simple-eq/target/release/build/crossbeam-utils-b74e5856988d0e55/build_script_build-b74e5856988d0e55.d: /home/pvieira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossbeam-utils-0.8.21/build.rs /home/pvieira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossbeam-utils-0.8.21/no_atomic.rs /home/pvieira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossbeam-utils-0.8.21/build-common.rs
+
+/home/pvieira/projects/simple-eq/target/release/build/crossbeam-utils-b74e5856988d0e55/build_script_build-b74e5856988d0e55: /home/pvieira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossbeam-utils-0.8.21/build.rs /home/pvieira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossbeam-utils-0.8.21/no_atomic.rs /home/pvieira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossbeam-utils-0.8.21/build-common.rs
+
+/home/pvieira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossbeam-utils-0.8.21/build.rs:
+/home/pvieira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossbeam-utils-0.8.21/no_atomic.rs:
+/home/pvieira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crossbeam-utils-0.8.21/build-common.rs:
+
+# env-dep:CARGO_PKG_NAME=crossbeam-utils

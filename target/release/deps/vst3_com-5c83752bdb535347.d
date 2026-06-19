@@ -1,0 +1,12 @@
+/home/pvieira/projects/simple-eq/target/release/deps/vst3_com-5c83752bdb535347.d: /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/lib.rs /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/ptr.rs /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/mod.rs /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/iunknown.rs /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/offset.rs /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/sys.rs
+
+/home/pvieira/projects/simple-eq/target/release/deps/libvst3_com-5c83752bdb535347.rlib: /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/lib.rs /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/ptr.rs /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/mod.rs /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/iunknown.rs /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/offset.rs /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/sys.rs
+
+/home/pvieira/projects/simple-eq/target/release/deps/libvst3_com-5c83752bdb535347.rmeta: /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/lib.rs /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/ptr.rs /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/mod.rs /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/iunknown.rs /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/offset.rs /home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/sys.rs
+
+/home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/lib.rs:
+/home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/ptr.rs:
+/home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/mod.rs:
+/home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/interfaces/iunknown.rs:
+/home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/offset.rs:
+/home/pvieira/.cargo/git/checkouts/vst3-sys-7c1833a33d74d639/b3ff4d7/com/src/sys.rs:

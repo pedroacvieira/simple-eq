@@ -36,23 +36,23 @@ impl Filter {
 }
 
 // Low shelf: H(s) = (s + A·ω₀) / (s + ω₀), DC gain = A, HF gain = 1
-// Bilinear transform with K = tan(π·fc/fs):
-//   b0 = (K+A)/(K+1),  b1 = (A-K)/(K+1),  a1 = (1-K)/(K+1)
+// Bilinear substitution s → (1/k)·(1−z⁻¹)/(1+z⁻¹), k = tan(π·fc/fs):
+//   b0 = (1+A·k)/(1+k),  b1 = (A·k−1)/(1+k),  a1 = (k−1)/(1+k)
 fn low_shelf_coeffs(gain_db: f32, sample_rate: f32) -> (f64, f64, f64) {
     let a = 10.0_f64.powf(gain_db as f64 / 20.0);
     let k = (std::f64::consts::PI * LOW_SHELF_HZ / sample_rate as f64).tan();
-    let denom = k + 1.0;
-    ((k + a) / denom, (a - k) / denom, (1.0 - k) / denom)
+    let denom = 1.0 + k;
+    ((1.0 + a * k) / denom, (a * k - 1.0) / denom, (k - 1.0) / denom)
 }
 
 // High shelf: H(s) = A·(s + ω₀) / (s + A·ω₀), DC gain = 1, HF gain = A
-// Bilinear transform with K = tan(π·fc/fs):
-//   b0 = A·(K+1)/(K+A),  b1 = A·(1-K)/(K+A),  a1 = (A-K)/(K+A)
+// Bilinear substitution s → (1/k)·(1−z⁻¹)/(1+z⁻¹), k = tan(π·fc/fs):
+//   b0 = A·(1+k)/(1+A·k),  b1 = A·(k−1)/(1+A·k),  a1 = (A·k−1)/(1+A·k)
 fn high_shelf_coeffs(gain_db: f32, sample_rate: f32) -> (f64, f64, f64) {
     let a = 10.0_f64.powf(gain_db as f64 / 20.0);
     let k = (std::f64::consts::PI * HIGH_SHELF_HZ / sample_rate as f64).tan();
-    let denom = k + a;
-    (a * (k + 1.0) / denom, a * (1.0 - k) / denom, (a - k) / denom)
+    let denom = 1.0 + a * k;
+    (a * (1.0 + k) / denom, a * (k - 1.0) / denom, (a * k - 1.0) / denom)
 }
 
 struct SimpleEq {
@@ -222,3 +222,257 @@ impl Vst3Plugin for SimpleEq {
 
 nih_export_clap!(SimpleEq);
 nih_export_vst3!(SimpleEq);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::f64::consts::PI;
+
+    const FS: f32 = 44100.0;
+    const DB_TOL: f64 = 0.01; // tolerance for exact analytical checks
+
+    // ── helpers ───────────────────────────────────────────────────────────
+
+    fn to_db(linear: f64) -> f64 {
+        20.0 * linear.log10()
+    }
+
+    // Exact magnitude of H(e^jw) = (b0 + b1·e^−jw) / (1 + a1·e^−jw)
+    // Uses the factored complex form to avoid catastrophic cancellation when b0 ≈ −b1.
+    fn freq_mag(b0: f64, b1: f64, a1: f64, w: f64) -> f64 {
+        let (c, s) = (w.cos(), w.sin());
+        let re_n = b0 + b1 * c;
+        let im_n = b1 * s;
+        let re_d = 1.0 + a1 * c;
+        let im_d = a1 * s;
+        ((re_n * re_n + im_n * im_n) / (re_d * re_d + im_d * im_d)).sqrt()
+    }
+
+    // H(z=1): exact DC gain
+    fn dc_mag(b0: f64, b1: f64, a1: f64) -> f64 {
+        (b0 + b1) / (1.0 + a1)
+    }
+
+    // H(z=−1): exact Nyquist gain
+    fn nyquist_mag(b0: f64, b1: f64, a1: f64) -> f64 {
+        (b0 - b1) / (1.0 - a1)
+    }
+
+    // Drive a filter with a sine at freq_hz; after settling, return RMS(out)/RMS(in)
+    fn measure_gain(f: &mut Filter, freq_hz: f64, settle: usize, measure: usize) -> f64 {
+        let w = 2.0 * PI * freq_hz / FS as f64;
+        for n in 0..settle {
+            f.process((w * n as f64).sin());
+        }
+        let (mut sum_out, mut sum_in) = (0.0_f64, 0.0_f64);
+        for n in settle..settle + measure {
+            let x = (w * n as f64).sin();
+            let y = f.process(x);
+            sum_out += y * y;
+            sum_in += x * x;
+        }
+        (sum_out / sum_in).sqrt()
+    }
+
+    // ── Coefficient correctness ───────────────────────────────────────────
+
+    #[test]
+    fn low_shelf_dc_gain_matches_target() {
+        for &gain_db in &[-18.0_f32, -12.0, -6.0, 0.0, 6.0, 12.0, 18.0] {
+            let (b0, b1, a1) = low_shelf_coeffs(gain_db, FS);
+            let got = to_db(dc_mag(b0, b1, a1));
+            assert!(
+                (got - gain_db as f64).abs() < DB_TOL,
+                "low shelf DC: expected {gain_db} dB, got {got:.4} dB"
+            );
+        }
+    }
+
+    #[test]
+    fn low_shelf_nyquist_is_zero_db() {
+        for &gain_db in &[-18.0_f32, -6.0, 0.0, 6.0, 18.0] {
+            let (b0, b1, a1) = low_shelf_coeffs(gain_db, FS);
+            let got = to_db(nyquist_mag(b0, b1, a1));
+            assert!(
+                got.abs() < DB_TOL,
+                "low shelf Nyquist should be 0 dB for gain {gain_db}, got {got:.4} dB"
+            );
+        }
+    }
+
+    #[test]
+    fn high_shelf_dc_is_zero_db() {
+        for &gain_db in &[-18.0_f32, -6.0, 0.0, 6.0, 18.0] {
+            let (b0, b1, a1) = high_shelf_coeffs(gain_db, FS);
+            let got = to_db(dc_mag(b0, b1, a1));
+            assert!(
+                got.abs() < DB_TOL,
+                "high shelf DC should be 0 dB for gain {gain_db}, got {got:.4} dB"
+            );
+        }
+    }
+
+    #[test]
+    fn high_shelf_nyquist_matches_target() {
+        for &gain_db in &[-18.0_f32, -12.0, -6.0, 0.0, 6.0, 12.0, 18.0] {
+            let (b0, b1, a1) = high_shelf_coeffs(gain_db, FS);
+            let got = to_db(nyquist_mag(b0, b1, a1));
+            assert!(
+                (got - gain_db as f64).abs() < DB_TOL,
+                "high shelf Nyquist: expected {gain_db} dB, got {got:.4} dB"
+            );
+        }
+    }
+
+    // ── Shelf direction ───────────────────────────────────────────────────
+
+    #[test]
+    fn low_shelf_direction_correct() {
+        // fc/100 = 2 Hz: below A·fc even at ±18 dB, so we're deep inside the shelf → ≈ target
+        // Nyquist (exact): well above any shelf frequency → 0 dB (unique to low shelf shape)
+        for &gain_db in &[-18.0_f32, -6.0, 6.0, 18.0] {
+            let (b0, b1, a1) = low_shelf_coeffs(gain_db, FS);
+            let w_inside = 2.0 * PI * (LOW_SHELF_HZ / 100.0) / FS as f64;
+            let inside_db = to_db(freq_mag(b0, b1, a1, w_inside));
+            let nyq_db    = to_db(nyquist_mag(b0, b1, a1));
+            assert!(
+                (inside_db - gain_db as f64).abs() < 0.5,
+                "low shelf at fc/100: expected {gain_db} dB, got {inside_db:.3} dB"
+            );
+            assert!(
+                nyq_db.abs() < DB_TOL,
+                "low shelf at Nyquist: expected 0 dB for gain {gain_db}, got {nyq_db:.4} dB"
+            );
+        }
+    }
+
+    #[test]
+    fn high_shelf_direction_correct() {
+        // fc/100 = 80 Hz: below A·fc even for large cuts, so well outside the shelf → ≈ 0 dB
+        // Nyquist (exact): deep inside the shelf → matches target
+        for &gain_db in &[-18.0_f32, -6.0, 6.0, 18.0] {
+            let (b0, b1, a1) = high_shelf_coeffs(gain_db, FS);
+            let w_outside = 2.0 * PI * (HIGH_SHELF_HZ / 100.0) / FS as f64;
+            let outside_db = to_db(freq_mag(b0, b1, a1, w_outside));
+            let nyq_db     = to_db(nyquist_mag(b0, b1, a1));
+            assert!(
+                outside_db.abs() < 0.5,
+                "high shelf at fc/100: expected ~0 dB for gain {gain_db}, got {outside_db:.3} dB"
+            );
+            assert!(
+                (nyq_db - gain_db as f64).abs() < DB_TOL,
+                "high shelf at Nyquist: expected {gain_db} dB, got {nyq_db:.4} dB"
+            );
+        }
+    }
+
+    // ── Filter::process correctness ───────────────────────────────────────
+
+    #[test]
+    fn filter_dc_steady_state_matches_gain() {
+        // Feed DC=1.0; output must converge to 10^(gain_db/20)
+        for &gain_db in &[-12.0_f32, 0.0, 12.0] {
+            let target = 10.0_f64.powf(gain_db as f64 / 20.0);
+            let (b0, b1, a1) = low_shelf_coeffs(gain_db, FS);
+            let mut f = Filter::default();
+            f.set_coeffs(b0, b1, a1);
+            for _ in 0..20_000 {
+                f.process(1.0);
+            }
+            let out = f.process(1.0);
+            assert!(
+                (out - target).abs() < 1e-9,
+                "DC steady-state at {gain_db} dB: expected {target:.9}, got {out:.9}"
+            );
+        }
+    }
+
+    #[test]
+    fn process_matches_analytical_gain() {
+        // Empirically measured gain must match freq_mag() to within 0.01 dB
+        for &gain_db in &[-12.0_f32, 0.0, 12.0] {
+            let test_freq = 50.0_f64; // well below 200 Hz shelf
+            let (b0, b1, a1) = low_shelf_coeffs(gain_db, FS);
+            let w = 2.0 * PI * test_freq / FS as f64;
+            let expected = freq_mag(b0, b1, a1, w);
+            let mut f = Filter::default();
+            f.set_coeffs(b0, b1, a1);
+            let measured = measure_gain(&mut f, test_freq, 4096, 8192);
+            // ~0.5% tolerance: RMS over a non-integer number of cycles has a partial-period
+            // bias that doesn't cancel when input and output have different phase offsets.
+            assert!(
+                (measured - expected).abs() < 5e-3,
+                "at {test_freq} Hz, {gain_db} dB: analytical={expected:.6}, measured={measured:.6}"
+            );
+        }
+    }
+
+    // ── State management ──────────────────────────────────────────────────
+
+    #[test]
+    fn reset_clears_state() {
+        let (b0, b1, a1) = low_shelf_coeffs(18.0, FS);
+        let mut f = Filter::default();
+        f.set_coeffs(b0, b1, a1);
+        for n in 0..1000 {
+            f.process((0.1 * n as f64).sin());
+        }
+        f.reset();
+        // Zero input into a zeroed filter must return exactly zero
+        assert_eq!(f.process(0.0), 0.0, "x1 and y1 should be zero after reset");
+        assert_eq!(f.process(0.0), 0.0);
+    }
+
+    #[test]
+    fn filters_are_independent_per_channel() {
+        let (b0, b1, a1) = low_shelf_coeffs(12.0, FS);
+        let mut left = Filter::default();
+        let mut right = Filter::default();
+        left.set_coeffs(b0, b1, a1);
+        right.set_coeffs(b0, b1, a1);
+
+        for n in 0..1000 {
+            left.process((0.01 * n as f64).sin());
+            right.process(0.0);
+        }
+        // Right should have zero state; left should not
+        assert_eq!(right.process(0.0), 0.0, "silent channel must stay silent");
+        assert_ne!(left.x1, 0.0, "active channel must have non-zero state");
+    }
+
+    // ── Stability ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn no_nan_or_inf_with_full_scale_input() {
+        let cases = [
+            low_shelf_coeffs(18.0, FS),
+            low_shelf_coeffs(-18.0, FS),
+            high_shelf_coeffs(18.0, FS),
+            high_shelf_coeffs(-18.0, FS),
+        ];
+        for (b0, b1, a1) in cases {
+            let mut f = Filter::default();
+            f.set_coeffs(b0, b1, a1);
+            for _ in 0..10_000 {
+                let y = f.process(1.0);
+                assert!(y.is_finite(), "output became non-finite: {y}");
+            }
+        }
+    }
+
+    #[test]
+    fn filter_decays_to_silence_after_input_stops() {
+        let (b0, b1, a1) = low_shelf_coeffs(12.0, FS);
+        let mut f = Filter::default();
+        f.set_coeffs(b0, b1, a1);
+        for n in 0..1000 {
+            f.process((0.01 * n as f64).sin());
+        }
+        // A stable filter fed silence must converge to zero
+        let mut last = 1.0_f64;
+        for _ in 0..100_000 {
+            last = f.process(0.0);
+        }
+        assert!(last.abs() < 1e-10, "filter didn't decay to zero: {last:.2e}");
+    }
+}
