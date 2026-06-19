@@ -1,0 +1,3 @@
+[workspace]
+members = ["simple-eq", "xtask"]
+resolver = "2"
